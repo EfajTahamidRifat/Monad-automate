@@ -22,18 +22,60 @@ MAX_INTERVAL = 2  # Maximum minutes between different script executions
 
 
 def print_border(message, color=Fore.WHITE):
-    """[removed long docstring]"""Run all scripts in sequence with intervals, then wait for next cycle."""[removed long docstring]"""Main entry point."""
-    # Ensure src directory exists
+    """
+    Print a colored border message.
+    """
+    border = f"{color}{'=' * BORDER_WIDTH}{Style.RESET_ALL}"
+    print(border)
+    print(f"{color}{message.center(BORDER_WIDTH)}{Style.RESET_ALL}")
+    print(border)
+
+
+async def schedule_scripts():
+    """
+    Run all scripts in sequence with random intervals,
+    then wait for the next daily cycle.
+    """
+    while True:
+        print_border("Starting Multi-DEX Runner", Fore.GREEN)
+
+        for script_name in SCRIPTS:
+            script_path = os.path.join(SRC_FOLDER, f"{script_name}.py")
+            if not os.path.isfile(script_path):
+                logger.error(f"Script not found: {script_name}.py")
+                continue
+
+            print_border(f"Running {script_name}", Fore.CYAN)
+            try:
+                spec = importlib.util.spec_from_file_location(script_name, script_path)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[script_name] = module
+                spec.loader.exec_module(module)
+                logger.info(f"{script_name} executed successfully.")
+            except Exception as e:
+                logger.error(f"Error running {script_name}: {e}")
+
+            # Random interval between scripts
+            delay = random.randint(MIN_INTERVAL, MAX_INTERVAL) * 60
+            await asyncio.sleep(delay)
+
+        # Wait for next cycle
+        hours = random.randint(MIN_HOURS, MAX_HOURS)
+        print_border(f"Cycle complete. Waiting {hours} hours for next run.", Fore.YELLOW)
+        await asyncio.sleep(hours * 3600)
+
+
+async def main():
+    """
+    Main entry point of the runner.
+    Ensures src directory exists and starts scheduling.
+    """
     if not os.path.isdir(SRC_FOLDER):
         logger.critical(f"Source folder '{SRC_FOLDER}' not found!")
         print(f"{Fore.RED}ERROR: Source folder '{SRC_FOLDER}' not found!{Style.RESET_ALL}")
         return
 
-    print(f"{Fore.GREEN}Starting Multi-DEX Runner...{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}Looking for scripts in: {SRC_FOLDER}/{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}Running scripts: {', '.join(SCRIPTS)}{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}Press Ctrl+C to stop the script{Style.RESET_ALL}")
-
+    print_border("Multi-DEX Runner Initialized", Fore.MAGENTA)
     await schedule_scripts()
 
 
